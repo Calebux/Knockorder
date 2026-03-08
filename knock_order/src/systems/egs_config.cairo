@@ -3,6 +3,7 @@
 #[dojo::contract]
 pub mod EgsConfig {
     use dojo::model::ModelStorage;
+    use dojo::world::IWorldDispatcherTrait;
     use dojo_starter::interfaces::IEgsConfig::IEgsConfig;
     use dojo_starter::models::EgsConfig;
     use starknet::{ContractAddress, get_caller_address};
@@ -11,7 +12,7 @@ pub mod EgsConfig {
     impl EgsConfigImpl of IEgsConfig<ContractState> {
         fn set_adapter(ref self: ContractState, adapter: ContractAddress) {
             let mut world = self.world_default();
-            // Only the Dojo world owner may set this
+            // Only the Dojo world owner may set this (world resource selector = 0)
             let caller = get_caller_address();
             assert(world.dispatcher.is_owner(0, caller), 'not world owner');
 

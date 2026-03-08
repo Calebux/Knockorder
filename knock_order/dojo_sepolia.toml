@@ -4,7 +4,8 @@ description = "Knock Order card game world"
 cover_uri = "file://assets/cover.png"
 icon_uri = "file://assets/icon.png"
 website = "https://github.com/dojoengine/dojo-starter"
-seed = "knock_order_sepolia"
+# Change seed to deploy a fresh world and avoid "Mismatch compiled class hash" after code/toolchain changes
+seed = "knock_order_sepolia_v3"
 
 [world.socials]
 x = "https://x.com/ohayo_dojo"
@@ -31,5 +32,6 @@ rpc_url = "https://api.cartridge.gg/x/starknet/sepolia"
   "dojo_starter-DrainLife",
   "dojo_starter-EndRound",
   "dojo_starter-EndMatch",
-  "dojo_starter-InitCards"
+  "dojo_starter-InitCards",
+  "dojo_starter-EgsConfig"
 ]
