@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "../lib/gameStore";
+import { useAccount, useConnect } from "@starknet-react/core";
+import { getConnector } from "../lib/cartridge";
 
 const BG_IMAGE =
   "https://www.figma.com/api/mcp/asset/391bcf4f-350f-4a5a-8d08-9aad39c53e12";
@@ -17,6 +19,27 @@ export default function CreateMatch() {
   const [matchType, setMatchType] = useState<MatchType>("ranked");
   const router = useRouter();
   const resetMatch = useGameStore((s) => s.resetMatch);
+  const setCartridgeUsername = useGameStore((s) => s.setCartridgeUsername);
+  const cartridgeUsername = useGameStore((s) => s.cartridgeUsername);
+
+  const { connect } = useConnect();
+  const { status } = useAccount();
+
+  // Open Cartridge popup if not already connected
+  useEffect(() => {
+    if (status === "disconnected") {
+      connect({ connector: getConnector() });
+    }
+  }, [status, connect]);
+
+  // Fetch and store username once connected
+  useEffect(() => {
+    if (status !== "connected") return;
+    const usernamePromise = getConnector()?.username();
+    usernamePromise?.then((name) => {
+      setCartridgeUsername(name ?? null);
+    }).catch(() => { /* silent */ });
+  }, [status, setCartridgeUsername]);
 
   const handleCreateMatch = () => {
     resetMatch();
@@ -71,7 +94,7 @@ export default function CreateMatch() {
             className="text-black font-medium text-right"
             style={{ fontSize: "14px", lineHeight: "20px" }}
           >
-            Satoshi_Nakamoto
+            {cartridgeUsername ?? (status === "connecting" ? "Connecting…" : "Guest")}
           </span>
         </div>
         <div className="relative ml-4 shrink-0">

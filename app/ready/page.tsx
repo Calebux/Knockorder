@@ -22,6 +22,8 @@ export default function ReadyYourDeck() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [challengeUser, setChallengeUser] = useState("");
+  const [challenged, setChallenged] = useState(false);
   const storeMatchId = useGameStore((s) => s.matchId);
   const cartridgeUsername = useGameStore((s) => s.cartridgeUsername);
 
@@ -42,6 +44,15 @@ export default function ReadyYourDeck() {
     navigator.clipboard.writeText(matchId);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleChallenge = () => {
+    if (!challengeUser.trim()) return;
+    // Copy a deep-link the opponent can paste into the Join screen
+    const link = `${window.location.origin}/join?id=${matchId}`;
+    navigator.clipboard.writeText(link);
+    setChallenged(true);
+    setTimeout(() => setChallenged(false), 2000);
   };
 
   return (
@@ -132,31 +143,56 @@ export default function ReadyYourDeck() {
             {/* Two-column: Direct Challenge | OR | Share Match Link */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 18 }}>
 
-              {/* Section 1: Enter Solo Match */}
-              <div style={{ width: 197, flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              {/* Section 1: Direct Challenge */}
+              <div style={{ width: 197, flexShrink: 0, display: "flex", flexDirection: "column" }}>
                 <div style={{
                   fontSize: 12, fontWeight: 700, color: "#fff",
                   textTransform: "uppercase", letterSpacing: 1.2,
-                  lineHeight: "16px", marginBottom: 12,
+                  lineHeight: "16px", marginBottom: 10,
                 }}>
-                  Solo Practice
+                  Direct Challenge
                 </div>
-                <p style={{ fontSize: 11, color: "#6b7280", lineHeight: "16px", marginBottom: 20 }}>
-                  Jump straight into a match against an AI opponent. Direct P2P challenges coming with multiplayer.
+                <p style={{ fontSize: 11, color: "#6b7280", lineHeight: "16px", marginBottom: 10 }}>
+                  Enter your opponent&apos;s Cartridge username to send a match invite link.
                 </p>
-                {/* Enter Arena button */}
+                {/* Username input */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
+                  backgroundColor: "rgba(17,10,24,0.5)",
+                  border: "1px solid #334155", borderRadius: 8,
+                  padding: "8px 12px",
+                }}>
+                  <span className="material-icons" style={{ color: "#56a4cb", fontSize: 15 }}>person</span>
+                  <input
+                    type="text"
+                    value={challengeUser}
+                    onChange={(e) => setChallengeUser(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleChallenge()}
+                    placeholder="@cartridge_user"
+                    style={{
+                      background: "none", border: "none", outline: "none",
+                      color: "#fff", fontSize: 12, width: "100%",
+                      fontFamily: "inherit", letterSpacing: 0.4,
+                    }}
+                  />
+                </div>
+                {/* Send Challenge button */}
+                <button
+                  onClick={handleChallenge}
+                  className="ko-btn ko-btn-primary"
+                  style={{ width: "100%", padding: "10px 0", marginBottom: 10, opacity: challengeUser.trim() ? 1 : 0.5 }}
+                >
+                  <span className="material-icons ko-btn-icon" style={{ fontSize: 15 }}>{challenged ? "check" : "send"}</span>
+                  <span className="ko-btn-text" style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: 0.7 }}>
+                    {challenged ? "Link Copied!" : "Send Challenge"}
+                  </span>
+                </button>
+                {/* Solo fallback */}
                 <button
                   onClick={() => router.push("/select-character")}
-                  className="ko-btn ko-btn-primary"
-                  style={{ width: "100%", padding: "12px 0" }}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#56a4cb", fontFamily: "inherit", letterSpacing: 0.5, textAlign: "left", padding: 0 }}
                 >
-                  <span className="material-icons ko-btn-icon" style={{ fontSize: 16 }}>sports_kabaddi</span>
-                  <span className="ko-btn-text" style={{
-                    fontSize: 14, fontWeight: 700, color: "#fff",
-                    textTransform: "uppercase", letterSpacing: 0.7,
-                  }}>
-                    Enter Arena
-                  </span>
+                  → Enter arena solo
                 </button>
               </div>
 

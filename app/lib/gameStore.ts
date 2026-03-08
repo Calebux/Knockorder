@@ -92,17 +92,13 @@ export const useGameStore = create<GameState>()(
     },
 
     startMatch: () => {
-        const { selectedCharacter } = get();
+        const { selectedCharacter, matchId: existingMatchId } = get();
 
         const available = CHARACTERS.filter(
             (c) => c.id !== selectedCharacter?.id && !c.isLocked
         );
         const opponent = available[Math.floor(Math.random() * available.length)];
         const deck = buildDeck();
-
-        // Generate a short random match ID
-        const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-        const matchId = `KO-${suffix}`;
 
         // Energy pool from character's drainStat
         const maxEnergy = selectedCharacter ? calcEnergyPool(selectedCharacter) : 10;
@@ -119,7 +115,7 @@ export const useGameStore = create<GameState>()(
             currentRoundResult: null,
             precomputedRound: null,
             revealedSlots: 0,
-            matchId,
+            matchId: existingMatchId, // keep the ID from the Ready screen
             maxEnergy,
         });
     },
@@ -247,7 +243,9 @@ export const useGameStore = create<GameState>()(
     },
 
     resetMatch: () => {
-        set({
+        // Generate a fresh matchId so the Ready screen can share it immediately
+        const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+        set((state) => ({
             selectedCharacter: null,
             opponentCharacter: null,
             playerDeck: [],
@@ -260,11 +258,11 @@ export const useGameStore = create<GameState>()(
             currentRoundResult: null,
             precomputedRound: null,
             revealedSlots: 0,
-            matchId: null,
+            matchId: `KO-${suffix}`,
             maxEnergy: 10,
-            playerPoints: 0,
+            playerPoints: state.playerPoints, // keep — persisted to localStorage
             pointsThisRound: 0,
-        });
+        }));
     },
     }),
     {
