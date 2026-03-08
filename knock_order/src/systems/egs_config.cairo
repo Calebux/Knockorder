@@ -1,7 +1,7 @@
 /// Dojo system that stores the KnockOrderEGS adapter address in world state.
 /// Call set_adapter(<adapter_addr>) once after deploying the EGS adapter contract.
 #[dojo::contract]
-pub mod EgsConfig {
+pub mod EgsAdmin {
     use dojo::model::ModelStorage;
     use dojo::world::IWorldDispatcherTrait;
     use dojo_starter::interfaces::IEgsConfig::IEgsConfig;

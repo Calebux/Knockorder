@@ -33,5 +33,5 @@ rpc_url = "https://api.cartridge.gg/x/starknet/sepolia"
   "dojo_starter-EndRound",
   "dojo_starter-EndMatch",
   "dojo_starter-InitCards",
-  "dojo_starter-EgsConfig"
+  "dojo_starter-EgsAdmin"
 ]
