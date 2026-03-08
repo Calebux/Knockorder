@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { Card, Character, CARDS, CHARACTERS, buildDeck } from "./gameData";
 import {
     generateAIOrder,
@@ -63,7 +64,9 @@ interface GameState {
     resetMatch: () => void;
 }
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>()(
+  persist(
+    (set, get) => ({
     selectedCharacter: null,
     opponentCharacter: null,
     playerDeck: [],
@@ -263,4 +266,10 @@ export const useGameStore = create<GameState>((set, get) => ({
             pointsThisRound: 0,
         });
     },
-}));
+    }),
+    {
+      name: "knock-order-store",
+      partialize: (state) => ({ playerPoints: state.playerPoints }),
+    }
+  )
+);

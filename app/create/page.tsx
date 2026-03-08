@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "../lib/gameStore";
-import { useAccount, useConnect } from "@starknet-react/core";
-import { getConnector } from "../lib/cartridge";
 
 const BG_IMAGE =
   "https://www.figma.com/api/mcp/asset/391bcf4f-350f-4a5a-8d08-9aad39c53e12";
@@ -19,29 +17,8 @@ export default function CreateMatch() {
   const [matchType, setMatchType] = useState<MatchType>("ranked");
   const router = useRouter();
   const resetMatch = useGameStore((s) => s.resetMatch);
-  const setCartridgeUsername = useGameStore((s) => s.setCartridgeUsername);
-
-  const { address, status } = useAccount();
-  const { connect } = useConnect();
-  const [username, setUsername] = useState<string | null>(null);
-  const isConnected = status === "connected";
-
-  // Fetch Cartridge username once connected and persist to global store
-  useEffect(() => {
-    if (!isConnected) { setUsername(null); setCartridgeUsername(null); return; }
-    const connector = getConnector();
-    connector.username()?.then((u) => { setUsername(u); setCartridgeUsername(u); }).catch(() => {});
-  }, [isConnected, address, setCartridgeUsername]);
-
-  const handleConnect = () => {
-    connect({ connector: getConnector() });
-  };
 
   const handleCreateMatch = () => {
-    if (!isConnected) {
-      handleConnect();
-      return;
-    }
     resetMatch();
     router.push("/ready");
   };
@@ -74,43 +51,39 @@ export default function CreateMatch() {
 
       {/* Cartridge Identity (top right) */}
       <div
-        className="absolute flex items-center rounded-lg border border-[#222f42] p-[9px] cursor-pointer"
+        className="absolute flex items-center rounded-lg border border-[#222f42] p-[9px]"
         style={{
           top: "calc(50% - 353.5px)",
           left: "1200px",
           transform: "translateY(-50%)",
           backdropFilter: "blur(6px)",
-          backgroundColor: isConnected ? "#b9e7f4" : "rgba(15,23,42,0.8)",
+          backgroundColor: "#b9e7f4",
         }}
-        onClick={!isConnected ? handleConnect : undefined}
       >
         <div className="flex flex-col items-end" style={{ width: "127px" }}>
           <span
-            className="font-bold text-right uppercase tracking-[1px]"
-            style={{ fontSize: "10px", lineHeight: "10px", color: isConnected ? "black" : "#6b7280" }}
+            className="text-black font-bold text-right uppercase tracking-[1px]"
+            style={{ fontSize: "10px", lineHeight: "10px" }}
           >
             Cartridge Identity
           </span>
           <span
-            className="font-medium text-right"
-            style={{ fontSize: "14px", lineHeight: "20px", color: isConnected ? "black" : "#9ca3af" }}
+            className="text-black font-medium text-right"
+            style={{ fontSize: "14px", lineHeight: "20px" }}
           >
-            {isConnected ? (username ?? "Loading...") : "Not connected"}
+            Satoshi_Nakamoto
           </span>
         </div>
         <div className="relative ml-4 shrink-0">
           <div
-            className="relative rounded border-2 border-[#222f42] overflow-hidden flex items-center justify-center"
-            style={{ width: "40px", height: "40px", backgroundColor: isConnected ? "transparent" : "#1e293b" }}
+            className="relative rounded border-2 border-[#222f42] overflow-hidden"
+            style={{ width: "40px", height: "40px" }}
           >
-            {isConnected
-              ? <img src={AVATAR_IMAGE} alt="Avatar" className="w-full h-full object-cover" />
-              : <span className="material-icons" style={{ fontSize: 20, color: "#56a4cb" }}>person</span>
-            }
+            <img src={AVATAR_IMAGE} alt="Avatar" className="w-full h-full object-cover" />
           </div>
           <div
             className="absolute -bottom-1 -right-1 rounded-full border-2 border-[#0a060e]"
-            style={{ width: "12px", height: "12px", backgroundColor: isConnected ? "#22c55e" : "#6b7280" }}
+            style={{ width: "12px", height: "12px", backgroundColor: "#8c25f4" }}
           />
         </div>
       </div>
@@ -221,12 +194,8 @@ export default function CreateMatch() {
                     className="flex w-full py-[15px] ko-btn ko-btn-primary animate-pulse"
                     style={{ animationDuration: "3s" }}
                   >
-                    <span className="material-icons text-white ko-btn-icon" style={{ fontSize: "18px" }}>
-                      {isConnected ? "radar" : "account_balance_wallet"}
-                    </span>
-                    <span className="text-white font-bold uppercase tracking-[6px] pl-3 ko-btn-text" style={{ fontSize: "15px", lineHeight: "21px" }}>
-                      {isConnected ? "Create Match" : "Connect & Play"}
-                    </span>
+                    <span className="material-icons text-white ko-btn-icon" style={{ fontSize: "18px" }}>radar</span>
+                    <span className="text-white font-bold uppercase tracking-[6px] pl-3 ko-btn-text" style={{ fontSize: "15px", lineHeight: "21px" }}>Create Match</span>
                     <span className="material-icons text-white pl-3 ko-btn-icon" style={{ fontSize: "18px" }}>radar</span>
                   </button>
                   <p className="text-white text-center uppercase tracking-[1.5px] w-full" style={{ fontSize: "7.5px", lineHeight: "11.25px" }}>

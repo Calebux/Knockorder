@@ -96,6 +96,16 @@ const CLASH_STYLES = `
   @keyframes cinematicIn  { from { opacity: 0; } to { opacity: 1; } }
   @keyframes cinematicOut { from { opacity: 1; } to { opacity: 0; } }
   @keyframes descriptionFade { 0% { opacity:0; transform:translateY(12px); } 100% { opacity:1; transform:translateY(0); } }
+  @keyframes effectBannerIn {
+    0%   { transform: translateX(-50%) scaleX(0.4) scaleY(1.6); opacity: 0; filter: blur(12px); }
+    50%  { transform: translateX(-50%) scaleX(1.08) scaleY(0.95); opacity: 1; filter: blur(0px); }
+    65%  { transform: translateX(-50%) scaleX(0.97) scaleY(1.02); }
+    100% { transform: translateX(-50%) scaleX(1) scaleY(1); opacity: 1; filter: blur(0px); }
+  }
+  @keyframes effectBannerOut {
+    0%   { opacity: 1; transform: translateX(-50%) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) scale(1.15); }
+  }
   @keyframes cardShake {
     0%,100% { transform: translateX(0) rotate(0deg); }
     20% { transform: translateX(-6px) rotate(-2deg); }
@@ -109,6 +119,20 @@ interface ClashCinematicProps {
   result: SlotResult;
   opponentColor: string;
   fadeOut: boolean;
+}
+
+function getEffectLabel(effect: string): { label: string; color: string } {
+  switch (effect) {
+    case "evasion":   return { label: "EVASION!",   color: "#a855f7" };
+    case "reversal":  return { label: "REVERSAL!",  color: "#06b6d4" };
+    case "pressure":  return { label: "PRESSURE!",  color: "#c084fc" };
+    case "mindgame":  return { label: "MIND GAME!", color: "#a855f7" };
+    case "disrupt":   return { label: "DISRUPT!",   color: "#fbac4b" };
+    case "guard":     return { label: "GUARD!",     color: "#60a5ce" };
+    case "anticipation": return { label: "ANTICIPATE!", color: "#34d399" };
+    case "finisher":  return { label: "FINISHER!",  color: "#f43f5e" };
+    default:          return { label: effect.toUpperCase() + "!", color: "#fff" };
+  }
 }
 
 function ClashCinematic({ result, opponentColor, fadeOut }: ClashCinematicProps) {
@@ -221,6 +245,34 @@ function ClashCinematic({ result, opponentColor, fadeOut }: ClashCinematicProps)
           </div>
         </div>
       </div>
+
+      {/* Effect callout banner */}
+      {result.effect && (() => {
+        const { label, color } = getEffectLabel(result.effect);
+        return (
+          <div style={{
+            position: "absolute", top: 90, left: "50%",
+            animation: fadeOut
+              ? "effectBannerOut 0.3s ease forwards"
+              : "effectBannerIn 0.5s 0.3s cubic-bezier(0.22,1,0.36,1) both",
+            zIndex: 10,
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "8px 28px",
+            background: `linear-gradient(90deg, rgba(0,0,0,0) 0%, ${color}22 20%, ${color}33 50%, ${color}22 80%, rgba(0,0,0,0) 100%)`,
+            borderTop: `1.5px solid ${color}80`,
+            borderBottom: `1.5px solid ${color}80`,
+          }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: color, boxShadow: `0 0 8px ${color}` }} />
+            <span style={{
+              fontSize: 28, fontWeight: 900, letterSpacing: 6,
+              color,
+              textShadow: `0 0 20px ${color}, 0 0 40px ${color}80`,
+              fontFamily: "inherit",
+            }}>{label}</span>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: color, boxShadow: `0 0 8px ${color}` }} />
+          </div>
+        );
+      })()}
 
       {/* Description */}
       <div style={{

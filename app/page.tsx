@@ -1,8 +1,12 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
+import { useGameStore } from './lib/gameStore';
 
 
 export default function KnockOrderLandingPage() {
+  const playerPoints = useGameStore((s) => s.playerPoints);
   return (
     <>
       <title>Knock Order – Land Page</title>
@@ -187,6 +191,48 @@ export default function KnockOrderLandingPage() {
 
           .ko-nav-btn:hover .ko-btn-label { opacity: 1; text-shadow: 0 0 8px rgba(185, 231, 244, 0.4); }
           .ko-nav-btn:hover .ko-btn-icon { transform: scale(1.1); filter: drop-shadow(0 0 4px rgba(86,164,203,0.8)); }
+
+          .ko-points-badge {
+            position: absolute;
+            left: 40px;
+            top: 484px;
+            width: 180px;
+            height: 44px;
+            z-index: 15;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 16px;
+            background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(168,85,247,0.15));
+            border: 1px solid rgba(168,85,247,0.45);
+            border-radius: 6px;
+            backdrop-filter: blur(8px);
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+          }
+          .ko-points-badge .ko-points-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+          }
+          .ko-points-badge .ko-points-text {
+            display: flex;
+            flex-direction: column;
+          }
+          .ko-points-badge .ko-points-label {
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: rgba(168,85,247,0.8);
+            text-transform: uppercase;
+            line-height: 1;
+          }
+          .ko-points-badge .ko-points-value {
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 1px;
+            line-height: 1.2;
+            text-shadow: 0 0 12px rgba(168,85,247,0.6);
+          }
 
           .ko-right-tab {
             position: absolute;
@@ -398,6 +444,14 @@ export default function KnockOrderLandingPage() {
               <svg className="ko-btn-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
               <span className="ko-btn-label">COMMUNITY</span>
             </a>
+
+            <div className="ko-points-badge">
+              <span className="ko-points-icon">⚡</span>
+              <div className="ko-points-text">
+                <span className="ko-points-label">Total Points</span>
+                <span className="ko-points-value">{playerPoints.toLocaleString()}</span>
+              </div>
+            </div>
 
             <div className="ko-news-heading-img">
               <img src="https://www.figma.com/api/mcp/asset/935e9076-a5c3-4ae2-be56-4e67cad95581" alt="" />
