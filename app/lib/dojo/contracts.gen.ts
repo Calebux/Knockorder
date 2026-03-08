@@ -1,3 +1,4 @@
+// @ts-nocheck — auto-generated; starknet version conflict between @cartridge/connector and @dojoengine/core
 import { DojoProvider } from "@dojoengine/core";
 import { Account, AccountInterface, BigNumberish } from "starknet";
 

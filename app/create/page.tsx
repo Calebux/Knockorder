@@ -61,7 +61,8 @@ export default function CreateMatch() {
         const txHash = res.transaction_hash;
         const rpc = new RpcProvider({ nodeUrl: dojoConfig.rpcUrl });
         const receipt = await rpc.waitForTransaction(txHash, { retryInterval: 1000 });
-        const matchIdEvent = receipt.events?.find(
+        const receiptAny = receipt as unknown as { events?: { keys?: unknown[]; data?: string[] }[] };
+        const matchIdEvent = receiptAny.events?.find(
           (e) => e.keys?.some((k) => typeof k === "string" && k.includes("MatchCreated"))
         );
         const matchIdFromEvent = matchIdEvent?.data?.[0];
