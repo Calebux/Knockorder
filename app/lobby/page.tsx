@@ -46,9 +46,10 @@ export default function Lobby() {
       const t = setTimeout(() => setP2Ready(true), 1500 + Math.random() * 1000);
       return () => clearTimeout(t);
     }
-    // On-chain: poll every 3s for >= 2 events with this matchId in keys[1]
-    // (MatchCreated + PlayerJoined = both players committed)
-    const matchIdHex = "0x" + BigInt(matchId!).toString(16);
+    // On-chain: poll every 3s for a PlayerJoined event for this matchId
+    // Dojo EventEmitted: keys[1] = event type selector, data[1] = match_id
+    const PLAYER_JOINED_SELECTOR = "0x27069c552c0cda44ce1622a9f4fcddc2aef6cb910e5054f91fdf53f1d656aee";
+    const matchIdBig = BigInt(matchId!);
     const worldAddr = dojoConfig.worldAddress;
     const rpc = new RpcProvider({ nodeUrl: dojoConfig.rpcUrl });
     let stopped = false;
@@ -57,12 +58,16 @@ export default function Lobby() {
       try {
         const res = await rpc.getEvents({
           address: worldAddr,
-          keys: [[], [matchIdHex]],
+          keys: [[], [PLAYER_JOINED_SELECTOR]],
           from_block: { block_number: 0 },
           to_block: "latest",
           chunk_size: 50,
         });
-        if ((res.events?.length ?? 0) >= 2) {
+        // Post-filter: data[1] is match_id (data[0] is span length = 2)
+        const joined = (res.events ?? []).filter(e => {
+          try { return BigInt(e.data?.[1] ?? "0") === matchIdBig; } catch { return false; }
+        });
+        if (joined.length >= 1) {
           setP2Ready(true);
           return;
         }

@@ -100,14 +100,16 @@ export default function CreateMatch() {
         const receipt = await rpc.waitForTransaction(txHash, { retryInterval: 1000 });
         const receiptAny = receipt as unknown as { events?: { from_address?: string; keys?: string[]; data?: string[] }[] };
         const worldAddr = (dojoConfig.worldAddress ?? "").toLowerCase();
-        // MatchCreated event: keys[0]=selector, keys[1]=match_id, keys[2]=player_a
+        // Dojo EventEmitted structure: keys[1] = event type selector, data[1] = match_id (#[key] field)
+        // MatchCreated selector from manifest
+        const MATCH_CREATED_SELECTOR = "0x199ebe35c5cd3caaf8f8d7137a307e01bee043b122843117644198c0847f45a";
         const matchCreatedEvent = receiptAny.events?.find((e) => {
           if (worldAddr && (e.from_address ?? "").toLowerCase() !== worldAddr) return false;
-          const keys = e.keys ?? [];
-          if (keys.length < 2) return false;
-          try { const n = BigInt(keys[1]); return n > BigInt(0) && n < BigInt(1000000); } catch { return false; }
+          if ((e.keys?.[1] ?? "").toLowerCase() !== MATCH_CREATED_SELECTOR) return false;
+          return (e.data?.length ?? 0) >= 2;
         });
-        const matchIdFromEvent = matchCreatedEvent ? String(BigInt(matchCreatedEvent.keys![1])) : null;
+        // data[0] = keys span length (2: match_id + player_a), data[1] = match_id
+        const matchIdFromEvent = matchCreatedEvent ? String(BigInt(matchCreatedEvent.data![1])) : null;
         const newMatchId = matchIdFromEvent ?? `tx-${txHash.slice(0, 10)}`;
         resetMatch();
         setMatchId(newMatchId);

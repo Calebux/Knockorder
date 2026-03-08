@@ -149,20 +149,23 @@ export default function Loadout() {
       setLockingOnChain(false);
       // Wait for opponent to lock before proceeding
       setWaitingOpponent(true);
-      const matchIdHex = "0x" + matchIdNum.toString(16);
+      // Dojo EventEmitted: keys[1] = event type selector, data[1] = match_id
+      const MOVES_LOCKED_SELECTOR = "0x65ff290e360caadddb3400c37b1c419eb2c5188488db0fac5c89f41835780e9";
       const rpc = new RpcProvider({ nodeUrl: dojoConfig.rpcUrl });
       const pollBothLocked = async (): Promise<void> => {
         try {
           const res = await rpc.getEvents({
             address: dojoConfig.worldAddress,
-            keys: [[], [matchIdHex]],
+            keys: [[], [MOVES_LOCKED_SELECTOR]],
             from_block: { block_number: 0 },
             to_block: "latest",
             chunk_size: 100,
           });
-          // MovesLocked has keys[1]=matchId; count events beyond MatchCreated+PlayerJoined (2)
-          // Each player lock emits 1 MovesLocked, so total >= 4 means both locked
-          if ((res.events?.length ?? 0) >= 4) {
+          // Post-filter by match_id (data[1]); need >= 2 MovesLocked (one per player)
+          const locked = (res.events ?? []).filter(e => {
+            try { return BigInt(e.data?.[1] ?? "0") === matchIdNum; } catch { return false; }
+          });
+          if (locked.length >= 2) {
             router.push("/gameplay");
             return;
           }
