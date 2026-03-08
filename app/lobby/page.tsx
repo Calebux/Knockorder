@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "../lib/gameStore";
+import { useDojoWorld } from "../lib/dojo";
+import { RpcProvider } from "starknet";
 
 const BG_IMAGE = "https://www.figma.com/api/mcp/asset/322d591d-976a-47a9-8486-41a5a0cc6642";
 const LOGO_IMAGE = "https://www.figma.com/api/mcp/asset/c6286412-f94a-4c9b-83a4-9f042eaff47b";
@@ -17,9 +19,12 @@ export default function Lobby() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { selectedCharacter, opponentCharacter, matchId } = useGameStore();
+  const { config: dojoConfig } = useDojoWorld();
   const [p1Ready, setP1Ready] = useState(false);
   const [p2Ready, setP2Ready] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  const isOnChain = Boolean(matchId && /^\d+$/.test(matchId));
 
   const player = selectedCharacter;
   const opponent = opponentCharacter;
@@ -35,13 +40,40 @@ export default function Lobby() {
     return () => window.removeEventListener("resize", scale);
   }, []);
 
-  // AI opponent auto-readies after a short delay
+  // Solo: AI auto-readies; On-chain: poll blockchain for PlayerJoined event
   useEffect(() => {
-    const t = setTimeout(() => setP2Ready(true), 1500 + Math.random() * 1000);
-    return () => clearTimeout(t);
-  }, []);
+    if (!isOnChain) {
+      const t = setTimeout(() => setP2Ready(true), 1500 + Math.random() * 1000);
+      return () => clearTimeout(t);
+    }
+    // On-chain: poll every 3s for >= 2 events with this matchId in keys[1]
+    // (MatchCreated + PlayerJoined = both players committed)
+    const matchIdHex = "0x" + BigInt(matchId!).toString(16);
+    const worldAddr = dojoConfig.worldAddress;
+    const rpc = new RpcProvider({ nodeUrl: dojoConfig.rpcUrl });
+    let stopped = false;
+    const poll = async () => {
+      if (stopped) return;
+      try {
+        const res = await rpc.getEvents({
+          address: worldAddr,
+          keys: [[], [matchIdHex]],
+          from_block: { block_number: 0 },
+          to_block: "latest",
+          chunk_size: 50,
+        });
+        if ((res.events?.length ?? 0) >= 2) {
+          setP2Ready(true);
+          return;
+        }
+      } catch { /* silent */ }
+      if (!stopped) setTimeout(poll, 3000);
+    };
+    poll();
+    return () => { stopped = true; };
+  }, [isOnChain, matchId, dojoConfig]);
 
-  // Auto-ready P1 after 3s so solo players don't need to click
+  // Solo: auto-ready P1 after 3s; On-chain: P1 auto-readies (they committed by creating)
   useEffect(() => {
     const t = setTimeout(() => setP1Ready(true), 3000);
     return () => clearTimeout(t);

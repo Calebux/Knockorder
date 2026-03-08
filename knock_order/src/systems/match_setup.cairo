@@ -4,7 +4,7 @@ pub mod MatchSetup {
     use dojo::model::ModelStorage;
     use dojo_starter::base::events::{MatchCreated, PlayerJoined};
     use dojo_starter::interfaces::IMatchSetup::IMatchSetup;
-    use dojo_starter::models::{Match, MatchState, Player, STARTING_LIFE};
+    use dojo_starter::models::{Match, MatchCounter, MatchState, Player, STARTING_LIFE};
     use starknet::{ContractAddress, get_block_timestamp, get_caller_address};
 
     #[abi(embed_v0)]
@@ -18,9 +18,7 @@ pub mod MatchSetup {
             assert(player_a != opponent, 'cannot play against yourself');
             assert(best_of == 3 || best_of == 5, 'best_of must be 3 or 5');
 
-            // Generate match_id (simple incrementing for MVP)
-            // In production, use a proper ID generator
-            let match_id = get_next_match_id(@world);
+            let match_id = get_next_match_id(ref world);
 
             // Create match
             let match_data = Match {
@@ -87,11 +85,11 @@ pub mod MatchSetup {
         }
     }
 
-    // Simple match ID generator (in production, use proper counter)
-    fn get_next_match_id(world: @dojo::world::WorldStorage) -> u64 {
-        // For MVP, use timestamp-based or counter-based ID
-        // This is a placeholder - in production, use a proper counter model
-        1_u64  // Simplified for MVP
+    fn get_next_match_id(ref world: dojo::world::WorldStorage) -> u64 {
+        let mut counter: MatchCounter = world.read_model(0_u8);
+        counter.count += 1;
+        world.write_model(@counter);
+        counter.count
     }
 
     #[generate_trait]

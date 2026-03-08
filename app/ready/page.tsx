@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"; // useState kept for copied
 import { useRouter } from "next/navigation";
 import { useGameStore } from "../lib/gameStore";
+import { useEgsScore, decodeEgsScore, EGS_ADAPTER_ADDRESS } from "../lib/dojo/egs";
 
 // ── Figma assets ─────────────────────────────────────────────────
 const BG_IMAGE = "https://www.figma.com/api/mcp/asset/144683b5-580d-47ef-bc8e-0c40d1f968fe";
@@ -26,6 +27,8 @@ export default function ReadyYourDeck() {
   const [challenged, setChallenged] = useState(false);
   const storeMatchId = useGameStore((s) => s.matchId);
   const cartridgeUsername = useGameStore((s) => s.cartridgeUsername);
+  const isOnChain = Boolean(storeMatchId && /^\d+$/.test(storeMatchId));
+  const egsData = useEgsScore(isOnChain ? storeMatchId : null);
 
   useEffect(() => {
     const scale = () => {
@@ -261,6 +264,29 @@ export default function ReadyYourDeck() {
                     <img src={ICON_COPY} alt="Copy" style={{ width: 19, height: 22 }} />
                   </button>
                 </div>
+
+                {/* EGS badge — shows when match is on-chain and adapter is configured */}
+                {isOnChain && EGS_ADAPTER_ADDRESS && (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "6px 12px", borderRadius: 8,
+                    border: `1px solid ${egsData?.gameOver ? "#4ade80" : "rgba(90,191,230,0.3)"}`,
+                    backgroundColor: egsData?.gameOver ? "rgba(74,222,128,0.08)" : "rgba(90,191,230,0.05)",
+                    transition: "all 0.4s ease",
+                  }}>
+                    <span className="material-icons" style={{
+                      fontSize: 14,
+                      color: egsData?.gameOver ? "#4ade80" : "#5abfe6",
+                    }}>
+                      {egsData?.gameOver ? "verified" : "security"}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: egsData?.gameOver ? "#4ade80" : "#5abfe6", letterSpacing: 1.2, textTransform: "uppercase" }}>
+                      {egsData?.gameOver
+                        ? `EGS Verified · ${decodeEgsScore(egsData.score)}`
+                        : "EGS Tracked"}
+                    </span>
+                  </div>
+                )}
 
                 {/* Share Link button */}
                 <button

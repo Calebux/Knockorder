@@ -17,11 +17,31 @@ const LOGO_IMAGE =
 
 type MatchType = "casual" | "ranked" | "tourney";
 
+async function resolveCartridgeUsername(username: string): Promise<string | null> {
+  if (!username.trim()) return null;
+  try {
+    const res = await fetch("https://api.cartridge.gg/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `{ controller(username: ${JSON.stringify(username.trim())}, chainId: "SN_SEPOLIA") { address } }`,
+      }),
+    });
+    const json = await res.json();
+    return (json?.data?.controller?.address as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function CreateMatch() {
   const [matchType, setMatchType] = useState<MatchType>("ranked");
-  const [opponentAddress, setOpponentAddress] = useState("");
+  const [opponentUsername, setOpponentUsername] = useState("");
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
   const [dojoCreating, setDojoCreating] = useState(false);
   const [dojoError, setDojoError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
   const resetMatch = useGameStore((s) => s.resetMatch);
   const setMatchId = useGameStore((s) => s.setMatchId);
@@ -48,25 +68,47 @@ export default function CreateMatch() {
     }).catch(() => { /* silent */ });
   }, [status, setCartridgeUsername]);
 
+  // Debounced Cartridge username → address resolution
+  useEffect(() => {
+    if (!opponentUsername.trim()) {
+      setResolvedAddress(null);
+      setResolving(false);
+      return;
+    }
+    setResolving(true);
+    setResolvedAddress(null);
+    const timer = setTimeout(async () => {
+      const addr = await resolveCartridgeUsername(opponentUsername);
+      setResolvedAddress(addr);
+      setResolving(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [opponentUsername]);
+
   const handleCreateMatch = async () => {
-    if (dojoReady && dojoActions && account && opponentAddress.trim()) {
+    if (dojoReady && dojoActions && account && resolvedAddress) {
       setDojoError(null);
       setDojoCreating(true);
       try {
         const res = await dojoActions.MatchSetup.createMatch(
           account,
-          opponentAddress.trim() as `0x${string}`,
+          resolvedAddress as `0x${string}`,
           matchType === "tourney" ? 5 : 3
         );
         const txHash = res.transaction_hash;
         const rpc = new RpcProvider({ nodeUrl: dojoConfig.rpcUrl });
         const receipt = await rpc.waitForTransaction(txHash, { retryInterval: 1000 });
-        const receiptAny = receipt as unknown as { events?: { keys?: unknown[]; data?: string[] }[] };
-        const matchIdEvent = receiptAny.events?.find(
-          (e) => e.keys?.some((k) => typeof k === "string" && k.includes("MatchCreated"))
-        );
-        const matchIdFromEvent = matchIdEvent?.data?.[0];
-        const newMatchId = matchIdFromEvent !== undefined ? String(matchIdFromEvent) : `tx-${txHash.slice(0, 10)}`;
+        const receiptAny = receipt as unknown as { events?: { from_address?: string; keys?: string[]; data?: string[] }[] };
+        const worldAddr = (dojoConfig.worldAddress ?? "").toLowerCase();
+        // MatchCreated event: keys[0]=selector, keys[1]=match_id, keys[2]=player_a
+        const matchCreatedEvent = receiptAny.events?.find((e) => {
+          if (worldAddr && (e.from_address ?? "").toLowerCase() !== worldAddr) return false;
+          const keys = e.keys ?? [];
+          if (keys.length < 2) return false;
+          try { const n = BigInt(keys[1]); return n > BigInt(0) && n < BigInt(1000000); } catch { return false; }
+        });
+        const matchIdFromEvent = matchCreatedEvent ? String(BigInt(matchCreatedEvent.keys![1])) : null;
+        const newMatchId = matchIdFromEvent ?? `tx-${txHash.slice(0, 10)}`;
         resetMatch();
         setMatchId(newMatchId);
         router.push("/ready");
@@ -131,6 +173,25 @@ export default function CreateMatch() {
           >
             {cartridgeUsername ?? (status === "connecting" ? "Connecting…" : "Guest")}
           </span>
+          {account?.address && (
+            <button
+              onClick={() => {
+                void navigator.clipboard.writeText(account.address).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                });
+              }}
+              className="flex items-center gap-[3px] mt-[2px] cursor-pointer"
+              title={account.address}
+            >
+              <span className="text-[#222f42] font-mono text-right" style={{ fontSize: "8px" }}>
+                {account.address.slice(0, 6)}…{account.address.slice(-4)}
+              </span>
+              <span className="material-icons text-[#222f42]" style={{ fontSize: "9px" }}>
+                {copied ? "check" : "content_copy"}
+              </span>
+            </button>
+          )}
         </div>
         <div className="relative ml-4 shrink-0">
           <div
@@ -218,20 +279,41 @@ export default function CreateMatch() {
                   </div>
                 </div>
 
-                {/* On-chain: Opponent address (optional — leave blank to play solo vs AI) */}
+                {/* On-chain: Opponent Cartridge username (optional — leave blank to play solo) */}
                 {dojoReady && (
                   <div className="flex flex-col gap-[6px] items-start w-full">
                     <label className="text-white font-bold uppercase tracking-[2.7px]" style={{ fontSize: "9px", lineHeight: "12px" }}>
-                      Opponent wallet address <span className="text-[#56a4cb] normal-case tracking-normal" style={{ fontSize: "8px" }}>(optional — leave blank for solo vs AI)</span>
+                      Opponent Cartridge username <span className="text-[#56a4cb] normal-case tracking-normal" style={{ fontSize: "8px" }}>(optional — leave blank for solo vs AI)</span>
                     </label>
-                    <input
-                      type="text"
-                      value={opponentAddress}
-                      onChange={(e) => setOpponentAddress(e.target.value)}
-                      placeholder="0x... (on-chain match) or leave blank"
-                      className="w-full rounded-[6px] border border-[#56a4cb] p-[9.75px] bg-[rgba(30,41,59,0.5)] text-[#f1f5f9] placeholder:text-[#64748b]"
-                      style={{ fontSize: "10.5px" }}
-                    />
+                    <div className="relative w-full">
+                      <input
+                        type="text"
+                        value={opponentUsername}
+                        onChange={(e) => setOpponentUsername(e.target.value)}
+                        placeholder="cartridge username"
+                        className="w-full rounded-[6px] border border-[#56a4cb] p-[9.75px] pr-8 bg-[rgba(30,41,59,0.5)] text-[#f1f5f9] placeholder:text-[#64748b]"
+                        style={{ fontSize: "10.5px" }}
+                      />
+                      {opponentUsername.trim() && (
+                        <span
+                          className="absolute right-2 top-1/2 -translate-y-1/2 material-icons"
+                          style={{
+                            fontSize: "14px",
+                            color: resolving ? "#94a3b8" : resolvedAddress ? "#4ade80" : "#f87171",
+                          }}
+                        >
+                          {resolving ? "pending" : resolvedAddress ? "check_circle" : "cancel"}
+                        </span>
+                      )}
+                    </div>
+                    {resolvedAddress && (
+                      <p className="text-[#56a4cb]" style={{ fontSize: "8px" }}>
+                        {resolvedAddress.slice(0, 10)}…{resolvedAddress.slice(-6)}
+                      </p>
+                    )}
+                    {opponentUsername.trim() && !resolving && !resolvedAddress && (
+                      <p className="text-red-400" style={{ fontSize: "8px" }}>Username not found on Starknet Sepolia</p>
+                    )}
                     {dojoError && <p className="text-red-400 text-xs">{dojoError}</p>}
                   </div>
                 )}

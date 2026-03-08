@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { DojoProvider } from "@dojoengine/core";
 import { useAccount } from "@starknet-react/core";
 import { setupWorld, type DojoWorldActions } from "./contracts.gen";
@@ -25,7 +25,7 @@ function createProvider(manifest: unknown, rpcUrl: string): DojoProvider | null 
  */
 export function useDojoWorld() {
   const config = getDojoConfig();
-  const { address: accountAddress } = useAccount();
+  const { address: accountAddress, account } = useAccount();
   const manifest = config.manifest;
 
   const provider = useMemo(() => {
@@ -44,6 +44,15 @@ export function useDojoWorld() {
   }, [provider]);
 
   const isReady = Boolean(config.isEnabled && actions && accountAddress);
+
+  // Seed default cards on-chain once per device (idempotent write)
+  useEffect(() => {
+    if (!actions || !account) return;
+    if (typeof window !== "undefined" && localStorage.getItem("ko_cards_initialized_v1")) return;
+    actions.InitCards.initDefaultCards(account)
+      .then(() => localStorage.setItem("ko_cards_initialized_v1", "1"))
+      .catch(() => { /* silent — cards may already exist */ });
+  }, [actions, account]);
 
   return {
     config,

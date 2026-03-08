@@ -114,6 +114,25 @@ pub enum InteractionResult {
     FinisherBlocked,// Finisher was blocked
 }
 
+/// Singleton config model (key = 0) storing the deployed EgsAdapter address.
+/// Set once after deploying egs_adapter via the EgsConfig Dojo system.
+#[derive(Copy, Drop, Serde, Debug)]
+#[dojo::model]
+pub struct EgsConfig {
+    #[key]
+    pub id: u8,
+    pub adapter_address: starknet::ContractAddress,
+}
+
+// Auto-incrementing match ID counter (singleton: key = 0)
+#[derive(Copy, Drop, Serde, Debug)]
+#[dojo::model]
+pub struct MatchCounter {
+    #[key]
+    pub id: u8,
+    pub count: u64,
+}
+
 // ============================================================================
 // Constants
 // ============================================================================

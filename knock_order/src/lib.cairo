@@ -7,6 +7,8 @@ pub mod systems {
     pub mod end_round;
     pub mod end_match;
     pub mod init_cards;
+    pub mod egs_adapter;
+    pub mod egs_config;
 }
 
 pub mod models;
@@ -20,6 +22,9 @@ pub mod interfaces {
     pub mod IEndRound;
     pub mod IEndMatch;
     pub mod IInitCards;
+    pub mod IMinigameTokenData;
+    pub mod IEgsAdapter;
+    pub mod IEgsConfig;
 }
 
 pub mod base {

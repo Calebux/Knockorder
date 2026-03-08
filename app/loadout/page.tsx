@@ -6,6 +6,7 @@ import { useAccount } from "@starknet-react/core";
 import { useGameStore } from "../lib/gameStore";
 import { useDojoWorld } from "../lib/dojo";
 import { frontendCardIdToContractId } from "../lib/dojo/cardIds";
+import { RpcProvider } from "starknet";
 import { CARDS, Card, CardType } from "../lib/gameData";
 
 // ── Assets ─────────────────────────────────────────────────────────────────
@@ -88,10 +89,11 @@ export default function Loadout() {
     maxEnergy,
     matchId,
   } = useGameStore();
-  const { isReady: dojoReady, actions: dojoActions } = useDojoWorld();
+  const { isReady: dojoReady, actions: dojoActions, config: dojoConfig } = useDojoWorld();
   const { account } = useAccount();
   const [lockError, setLockError] = useState<string | null>(null);
   const [lockingOnChain, setLockingOnChain] = useState(false);
+  const [waitingOpponent, setWaitingOpponent] = useState(false);
 
   const currentFilter = TABS[activeTab].filter;
   const accentColor = TYPE_COLORS[currentFilter];
@@ -145,6 +147,31 @@ export default function Loadout() {
         return;
       }
       setLockingOnChain(false);
+      // Wait for opponent to lock before proceeding
+      setWaitingOpponent(true);
+      const matchIdHex = "0x" + matchIdNum.toString(16);
+      const rpc = new RpcProvider({ nodeUrl: dojoConfig.rpcUrl });
+      const pollBothLocked = async (): Promise<void> => {
+        try {
+          const res = await rpc.getEvents({
+            address: dojoConfig.worldAddress,
+            keys: [[], [matchIdHex]],
+            from_block: { block_number: 0 },
+            to_block: "latest",
+            chunk_size: 100,
+          });
+          // MovesLocked has keys[1]=matchId; count events beyond MatchCreated+PlayerJoined (2)
+          // Each player lock emits 1 MovesLocked, so total >= 4 means both locked
+          if ((res.events?.length ?? 0) >= 4) {
+            router.push("/gameplay");
+            return;
+          }
+        } catch { /* silent */ }
+        await new Promise((r) => setTimeout(r, 3000));
+        return pollBothLocked();
+      };
+      void pollBothLocked();
+      return;
     }
     router.push("/gameplay");
   };
@@ -558,15 +585,15 @@ export default function Loadout() {
           <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: 16, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
             <button
               onClick={handleLockOrder}
-              disabled={lockingOnChain}
+              disabled={lockingOnChain || waitingOpponent}
               className="ko-btn ko-btn-primary"
               style={{ padding: "12px 40px" }}
             >
               <span className="ko-btn-text" style={{
                 fontSize: 18, fontWeight: 800, textTransform: "uppercase",
                 letterSpacing: 3, color: "#fff",
-              }}>{lockingOnChain ? "Locking on-chain…" : "LOCK SEQUENCE"}</span>
-              {!lockingOnChain && <span className="material-icons ko-btn-icon" style={{ fontSize: 22, color: "#fff" }}>double_arrow</span>}
+              }}>{waitingOpponent ? "Waiting for opponent…" : lockingOnChain ? "Locking on-chain…" : "LOCK SEQUENCE"}</span>
+              {!lockingOnChain && !waitingOpponent && <span className="material-icons ko-btn-icon" style={{ fontSize: 22, color: "#fff" }}>double_arrow</span>}
             </button>
             {lockError && <span style={{ fontSize: 12, color: "#f87171" }}>{lockError}</span>}
           </div>
