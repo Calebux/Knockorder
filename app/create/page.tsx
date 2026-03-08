@@ -218,17 +218,17 @@ export default function CreateMatch() {
                   </div>
                 </div>
 
-                {/* On-chain: Opponent address (required when Dojo is enabled) */}
+                {/* On-chain: Opponent address (optional — leave blank to play solo vs AI) */}
                 {dojoReady && (
-                  <div className="flex flex-col gap-3 items-start w-full">
+                  <div className="flex flex-col gap-[6px] items-start w-full">
                     <label className="text-white font-bold uppercase tracking-[2.7px]" style={{ fontSize: "9px", lineHeight: "12px" }}>
-                      Opponent wallet address (on-chain)
+                      Opponent wallet address <span className="text-[#56a4cb] normal-case tracking-normal" style={{ fontSize: "8px" }}>(optional — leave blank for solo vs AI)</span>
                     </label>
                     <input
                       type="text"
                       value={opponentAddress}
                       onChange={(e) => setOpponentAddress(e.target.value)}
-                      placeholder="0x..."
+                      placeholder="0x... (on-chain match) or leave blank"
                       className="w-full rounded-[6px] border border-[#56a4cb] p-[9.75px] bg-[rgba(30,41,59,0.5)] text-[#f1f5f9] placeholder:text-[#64748b]"
                       style={{ fontSize: "10.5px" }}
                     />
@@ -267,7 +267,7 @@ export default function CreateMatch() {
                 <div className="flex flex-col gap-3 items-start w-full pt-[18px]">
                   <button
                     onClick={() => void handleCreateMatch()}
-                    disabled={dojoReady && (!opponentAddress.trim() || dojoCreating)}
+                    disabled={dojoCreating}
                     className="flex w-full py-[15px] ko-btn ko-btn-primary animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ animationDuration: "3s" }}
                   >
