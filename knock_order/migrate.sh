@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Stop script on error
+# Run from knock_order/ so .env.sepolia is loaded (DOJO_ACCOUNT_ADDRESS, DOJO_PRIVATE_KEY).
+# If running sozo manually, first: export $(grep -v '^#' .env.sepolia | xargs)
 set -e
 
 # Load environment variables from the appropriate file
