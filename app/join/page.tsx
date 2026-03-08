@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "../lib/gameStore";
+import { useAccount } from "@starknet-react/core";
+import { useDojoWorld } from "../lib/dojo";
 
 const BG_IMAGE = "https://www.figma.com/api/mcp/asset/144683b5-580d-47ef-bc8e-0c40d1f968fe";
 const LOGO    = "https://www.figma.com/api/mcp/asset/a6c81a09-6dae-4ce3-8262-4d237cd2c9c4";
@@ -14,11 +16,15 @@ const DESIGN_H = 823;
 
 export default function JoinMatch() {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const router  = useRouter();
+  const router = useRouter();
   const resetMatch = useGameStore((s) => s.resetMatch);
+  const setMatchId = useGameStore((s) => s.setMatchId);
+  const { account } = useAccount();
+  const { isReady: dojoReady, actions: dojoActions } = useDojoWorld();
 
-  const [code, setCode]     = useState("");
-  const [error, setError]   = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     const scale = () => {
@@ -31,23 +37,45 @@ export default function JoinMatch() {
     return () => window.removeEventListener("resize", scale);
   }, []);
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     const trimmed = code.trim();
-    if (!trimmed) { setError("Paste a match link or code first."); return; }
+    if (!trimmed) {
+      setError("Paste a match link or code first.");
+      return;
+    }
 
-    // Accept full URL (e.g. https://…/join?id=KO-XXXX) or bare code
     let matchCode = trimmed;
     try {
       const url = new URL(trimmed);
-      const id  = url.searchParams.get("id");
+      const id = url.searchParams.get("id");
       if (id) matchCode = id;
     } catch {
       // not a URL — treat as bare code
     }
 
-    if (!matchCode) { setError("Invalid match link."); return; }
+    if (!matchCode) {
+      setError("Invalid match link.");
+      return;
+    }
 
-    // For now: reset any local match state then drop into character select
+    const matchIdNum = /^\d+$/.test(matchCode) ? BigInt(matchCode) : null;
+
+    if (dojoReady && dojoActions && account && matchIdNum !== null) {
+      setError("");
+      setJoining(true);
+      try {
+        await dojoActions.MatchSetup.joinMatch(account, matchIdNum);
+        resetMatch();
+        setMatchId(matchCode);
+        router.push("/select-character");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Join failed");
+      } finally {
+        setJoining(false);
+        return;
+      }
+    }
+
     resetMatch();
     router.push("/select-character");
   };
@@ -137,7 +165,7 @@ export default function JoinMatch() {
                   type="text"
                   value={code}
                   onChange={(e) => { setCode(e.target.value); setError(""); }}
-                  onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                  onKeyDown={(e) => e.key === "Enter" && void handleJoin()}
                   placeholder="https://…/join?id=KO-XXXX  or  KO-XXXX"
                   style={{
                     background: "none", border: "none", outline: "none",
@@ -158,7 +186,8 @@ export default function JoinMatch() {
 
             {/* Join button */}
             <button
-              onClick={handleJoin}
+              onClick={() => void handleJoin()}
+                disabled={joining}
               className="ko-btn ko-btn-primary"
               style={{ width: "100%", padding: "15px 0" }}
             >

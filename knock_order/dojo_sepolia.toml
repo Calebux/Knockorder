@@ -1,0 +1,35 @@
+[world]
+name = "Knock Order"
+description = "Knock Order card game world"
+cover_uri = "file://assets/cover.png"
+icon_uri = "file://assets/icon.png"
+website = "https://github.com/dojoengine/dojo-starter"
+seed = "knock_order_sepolia"
+
+[world.socials]
+x = "https://x.com/ohayo_dojo"
+discord = "https://discord.gg/FB2wR6uF"
+github = "https://github.com/dojoengine/dojo-starter"
+telegram = "https://t.me/dojoengine"
+
+[namespace]
+default = "dojo_starter"
+
+[env]
+# Sozo requires rpc_url here; account/private_key are read from env by migrate.sh (DOJO_ACCOUNT_ADDRESS, DOJO_PRIVATE_KEY)
+rpc_url = "https://api.cartridge.gg/x/starknet/sepolia"
+# account_address = "" # env: DOJO_ACCOUNT_ADDRESS
+# private_key = ""     # env: DOJO_PRIVATE_KEY
+# world_address = ""   # set after first deploy (script will output it)
+
+[writers]
+"dojo_starter" = [
+  "dojo_starter-MatchSetup",
+  "dojo_starter-LockMoves",
+  "dojo_starter-ResolveSlot",
+  "dojo_starter-ResolveRound",
+  "dojo_starter-DrainLife",
+  "dojo_starter-EndRound",
+  "dojo_starter-EndMatch",
+  "dojo_starter-InitCards"
+]

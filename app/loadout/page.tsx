@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAccount } from "@starknet-react/core";
 import { useGameStore } from "../lib/gameStore";
+import { useDojoWorld } from "../lib/dojo";
+import { frontendCardIdToContractId } from "../lib/dojo/cardIds";
 import { CARDS, Card, CardType } from "../lib/gameData";
 
 // ── Assets ─────────────────────────────────────────────────────────────────
@@ -83,7 +86,12 @@ export default function Loadout() {
     removeCardFromSlot,
     lockOrder,
     maxEnergy,
+    matchId,
   } = useGameStore();
+  const { isReady: dojoReady, actions: dojoActions } = useDojoWorld();
+  const { account } = useAccount();
+  const [lockError, setLockError] = useState<string | null>(null);
+  const [lockingOnChain, setLockingOnChain] = useState(false);
 
   const currentFilter = TABS[activeTab].filter;
   const accentColor = TYPE_COLORS[currentFilter];
@@ -119,9 +127,25 @@ export default function Loadout() {
     return () => window.removeEventListener("resize", scale);
   }, []);
 
-  const handleLockOrder = () => {
+  const handleLockOrder = async () => {
     if (!isOrderComplete) return;
-    lockOrder();
+    setLockError(null);
+    const matchIdNum = matchId && /^\d+$/.test(matchId) ? BigInt(matchId) : null;
+    const slotIds = currentOrder.map((c) =>
+      c ? frontendCardIdToContractId(c.id) : 1
+    );
+    lockOrder(); // local state first
+    if (dojoReady && dojoActions && account && matchIdNum !== null) {
+      setLockingOnChain(true);
+      try {
+        await dojoActions.LockMoves.lockMoves(account, matchIdNum, slotIds);
+      } catch (e) {
+        setLockError(e instanceof Error ? e.message : "Lock on-chain failed");
+        setLockingOnChain(false);
+        return;
+      }
+      setLockingOnChain(false);
+    }
     router.push("/gameplay");
   };
 
@@ -531,23 +555,21 @@ export default function Loadout() {
 
         {/* Lock Sequence button — appears when order is complete */}
         {isOrderComplete && (
-          <button
-            onClick={handleLockOrder}
-            className="ko-btn ko-btn-primary"
-            style={{
-              position: "absolute",
-              left: "50%", transform: "translateX(-50%)",
-              bottom: 16,
-              padding: "12px 40px",
-              zIndex: 20,
-            }}
-          >
-            <span className="ko-btn-text" style={{
-              fontSize: 18, fontWeight: 800, textTransform: "uppercase",
-              letterSpacing: 3, color: "#fff",
-            }}>LOCK SEQUENCE</span>
-            <span className="material-icons ko-btn-icon" style={{ fontSize: 22, color: "#fff" }}>double_arrow</span>
-          </button>
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: 16, zIndex: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={handleLockOrder}
+              disabled={lockingOnChain}
+              className="ko-btn ko-btn-primary"
+              style={{ padding: "12px 40px" }}
+            >
+              <span className="ko-btn-text" style={{
+                fontSize: 18, fontWeight: 800, textTransform: "uppercase",
+                letterSpacing: 3, color: "#fff",
+              }}>{lockingOnChain ? "Locking on-chain…" : "LOCK SEQUENCE"}</span>
+              {!lockingOnChain && <span className="material-icons ko-btn-icon" style={{ fontSize: 22, color: "#fff" }}>double_arrow</span>}
+            </button>
+            {lockError && <span style={{ fontSize: 12, color: "#f87171" }}>{lockError}</span>}
+          </div>
         )}
 
         {/* Back button */}

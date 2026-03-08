@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useAccount } from "@starknet-react/core";
 import { useGameStore } from "../lib/gameStore";
+import { useDojoWorld } from "../lib/dojo";
 import { Card, CardType } from "../lib/gameData";
 import { SlotResult } from "../lib/combatEngine";
 import { playSound, startBgMusic, stopBgMusic, setMuted, isMuted } from "../lib/soundManager";
@@ -317,7 +319,11 @@ export default function Gameplay() {
     playerPoints,
     pointsThisRound,
     precomputedRound,
+    matchId,
   } = useGameStore();
+  const { isReady: dojoReady, actions: dojoActions } = useDojoWorld();
+  const { account } = useAccount();
+  const syncedRoundEndRef = useRef(false);
 
   const playerCards = currentOrder.filter((c): c is Card => c !== null);
   const [revealedSlots, setRevealedSlots] = useState(0);
@@ -431,6 +437,38 @@ export default function Gameplay() {
       }, 1000);
     }
   }, [revealedSlots, showResult, slotResults, finishRound]);
+
+  // Reset sync ref when leaving round result (e.g. next round or back to menu)
+  useEffect(() => {
+    if (matchPhase === "combat" || matchPhase === "loadout" || matchPhase === "idle") {
+      syncedRoundEndRef.current = false;
+    }
+  }, [matchPhase]);
+
+  // On-chain: resolve_round → end_round → end_match (when match end). One-time per round/match end.
+  useEffect(() => {
+    if (matchPhase !== "round-result" && matchPhase !== "match-end") return;
+    if (syncedRoundEndRef.current) return;
+    const matchIdNum = matchId && /^\d+$/.test(matchId) ? BigInt(matchId) : null;
+    if (!dojoReady || !dojoActions || !account || matchIdNum === null) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await dojoActions.ResolveRound.resolveRound(account, matchIdNum);
+        if (cancelled) return;
+        await dojoActions.EndRound.endRound(account, matchIdNum);
+        if (cancelled) return;
+        if (matchPhase === "match-end") {
+          await dojoActions.EndMatch.endMatch(account, matchIdNum);
+        }
+        if (!cancelled) syncedRoundEndRef.current = true;
+      } catch (e) {
+        if (!cancelled) console.warn("On-chain resolve/end failed:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [matchPhase, matchId, dojoReady, dojoActions, account]);
 
   const handleNextRound = () => {
     playSound("click");

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useGameStore } from "../lib/gameStore";
 import { useAccount, useConnect } from "@starknet-react/core";
 import { getConnector } from "../lib/cartridge";
+import { useDojoWorld } from "../lib/dojo";
+import { RpcProvider } from "starknet";
 
 const BG_IMAGE =
   "https://www.figma.com/api/mcp/asset/391bcf4f-350f-4a5a-8d08-9aad39c53e12";
@@ -17,13 +19,18 @@ type MatchType = "casual" | "ranked" | "tourney";
 
 export default function CreateMatch() {
   const [matchType, setMatchType] = useState<MatchType>("ranked");
+  const [opponentAddress, setOpponentAddress] = useState("");
+  const [dojoCreating, setDojoCreating] = useState(false);
+  const [dojoError, setDojoError] = useState<string | null>(null);
   const router = useRouter();
   const resetMatch = useGameStore((s) => s.resetMatch);
+  const setMatchId = useGameStore((s) => s.setMatchId);
   const setCartridgeUsername = useGameStore((s) => s.setCartridgeUsername);
   const cartridgeUsername = useGameStore((s) => s.cartridgeUsername);
 
   const { connect } = useConnect();
-  const { status } = useAccount();
+  const { status, account } = useAccount();
+  const { isReady: dojoReady, actions: dojoActions, config: dojoConfig } = useDojoWorld();
 
   // Open Cartridge popup if not already connected
   useEffect(() => {
@@ -41,7 +48,34 @@ export default function CreateMatch() {
     }).catch(() => { /* silent */ });
   }, [status, setCartridgeUsername]);
 
-  const handleCreateMatch = () => {
+  const handleCreateMatch = async () => {
+    if (dojoReady && dojoActions && account && opponentAddress.trim()) {
+      setDojoError(null);
+      setDojoCreating(true);
+      try {
+        const res = await dojoActions.MatchSetup.createMatch(
+          account,
+          opponentAddress.trim() as `0x${string}`,
+          matchType === "tourney" ? 5 : 3
+        );
+        const txHash = res.transaction_hash;
+        const rpc = new RpcProvider({ nodeUrl: dojoConfig.rpcUrl });
+        const receipt = await rpc.waitForTransaction(txHash, { retryInterval: 1000 });
+        const matchIdEvent = receipt.events?.find(
+          (e) => e.keys?.some((k) => typeof k === "string" && k.includes("MatchCreated"))
+        );
+        const matchIdFromEvent = matchIdEvent?.data?.[0];
+        const newMatchId = matchIdFromEvent !== undefined ? String(matchIdFromEvent) : `tx-${txHash.slice(0, 10)}`;
+        resetMatch();
+        setMatchId(newMatchId);
+        router.push("/ready");
+      } catch (err) {
+        setDojoError(err instanceof Error ? err.message : "Transaction failed");
+      } finally {
+        setDojoCreating(false);
+      }
+      return;
+    }
     resetMatch();
     router.push("/ready");
   };
@@ -183,6 +217,24 @@ export default function CreateMatch() {
                   </div>
                 </div>
 
+                {/* On-chain: Opponent address (required when Dojo is enabled) */}
+                {dojoReady && (
+                  <div className="flex flex-col gap-3 items-start w-full">
+                    <label className="text-white font-bold uppercase tracking-[2.7px]" style={{ fontSize: "9px", lineHeight: "12px" }}>
+                      Opponent wallet address (on-chain)
+                    </label>
+                    <input
+                      type="text"
+                      value={opponentAddress}
+                      onChange={(e) => setOpponentAddress(e.target.value)}
+                      placeholder="0x..."
+                      className="w-full rounded-[6px] border border-[#56a4cb] p-[9.75px] bg-[rgba(30,41,59,0.5)] text-[#f1f5f9] placeholder:text-[#64748b]"
+                      style={{ fontSize: "10.5px" }}
+                    />
+                    {dojoError && <p className="text-red-400 text-xs">{dojoError}</p>}
+                  </div>
+                )}
+
                 {/* Deck Selection + Server Region */}
                 <div className="flex gap-[18px] items-start w-full" style={{ height: "67.5px" }}>
                   <div className="flex-1 flex flex-col gap-[6px] items-start self-stretch">
@@ -213,12 +265,15 @@ export default function CreateMatch() {
                 {/* Create Match Button */}
                 <div className="flex flex-col gap-3 items-start w-full pt-[18px]">
                   <button
-                    onClick={handleCreateMatch}
-                    className="flex w-full py-[15px] ko-btn ko-btn-primary animate-pulse"
+                    onClick={() => void handleCreateMatch()}
+                    disabled={dojoReady && (!opponentAddress.trim() || dojoCreating)}
+                    className="flex w-full py-[15px] ko-btn ko-btn-primary animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ animationDuration: "3s" }}
                   >
                     <span className="material-icons text-white ko-btn-icon" style={{ fontSize: "18px" }}>radar</span>
-                    <span className="text-white font-bold uppercase tracking-[6px] pl-3 ko-btn-text" style={{ fontSize: "15px", lineHeight: "21px" }}>Create Match</span>
+                    <span className="text-white font-bold uppercase tracking-[6px] pl-3 ko-btn-text" style={{ fontSize: "15px", lineHeight: "21px" }}>
+                      {dojoCreating ? "Creating on-chain…" : "Create Match"}
+                    </span>
                     <span className="material-icons text-white pl-3 ko-btn-icon" style={{ fontSize: "18px" }}>radar</span>
                   </button>
                   <p className="text-white text-center uppercase tracking-[1.5px] w-full" style={{ fontSize: "7.5px", lineHeight: "11.25px" }}>

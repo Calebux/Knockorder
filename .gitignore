@@ -1,6 +1,6 @@
 # dependencies
 node_modules/
-
+Tyc/
 # Next.js build output
 .next/
 out/

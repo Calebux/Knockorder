@@ -42,6 +42,7 @@ interface GameState {
 
     // Match
     matchId: string | null;
+    setMatchId: (id: string | null) => void;
 
     // Player identity
     cartridgeUsername: string | null;
@@ -81,6 +82,7 @@ export const useGameStore = create<GameState>()(
     precomputedRound: null,
     maxEnergy: 10,
     matchId: null,
+    setMatchId: (id) => set({ matchId: id }),
     cartridgeUsername: null,
     playerPoints: 0,
     pointsThisRound: 0,
