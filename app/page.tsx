@@ -32,7 +32,7 @@ export default function KnockOrderLandingPage() {
             position: relative;
             width: 1440px;
             height: 823px;
-            background: #fff;
+            background: #0a0f1c;
             overflow: hidden;
           }
 
@@ -405,7 +405,7 @@ export default function KnockOrderLandingPage() {
         <div className="ko-land-page-wrapper">
           <div className="ko-land-page">
             <img className="ko-bg-image"
-              src="https://www.figma.com/api/mcp/asset/8be8713a-c846-404b-87d7-f55e008bb9dc"
+              src="/asset 1.png"
               alt="background" />
 
             <div className="ko-logo-wrap">
